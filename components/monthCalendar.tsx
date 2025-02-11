@@ -64,6 +64,7 @@ const MonthCalendar = ({ date, currentDate, getHolidayInfo }: propsType) => {
 const styles = StyleSheet.create({
   container: {
     // width: "100%",
+    // height: "fit-content",
   },
   dayWrapper: {
     width: "100%",

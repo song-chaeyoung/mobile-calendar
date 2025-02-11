@@ -21,14 +21,10 @@ import {
   useCalendarUiStore,
   useHolidayStore,
 } from "../stores/calendarStore";
-import MonthCalendar from "./monthCalendar";
-import WeekCalendar from "./weekCalendar";
-
-const dayName = ["일", "월", "화", "수", "목", "금", "토"];
-
-const isToday = (currDay: Dayjs) => {
-  return currDay.isSame(dayjs(), "day");
-};
+import FormModal from "./FormModal";
+import Weekdays from "./Weekdays";
+import WeekCalendar from "./WeekCalendar";
+import MonthCalendar from "./MonthCalendar";
 
 const Calendar = () => {
   dayjs.locale("ko");
@@ -43,67 +39,46 @@ const Calendar = () => {
   const translateX = useRef(new Animated.Value(0)).current;
   const [translateValue, setTranslateValue] = useState(0);
 
+  const [view, setView] = useState(false);
+
   useEffect(() => {
-    translateX.addListener(({ value }) => setTranslateValue(value));
+    translateX.addListener(({ value }) => {
+      setTranslateValue(value);
+    });
     return () => {
       translateX.removeAllListeners();
     };
   }, []);
 
   const animateTransition = useCallback(
-    (direction: "left" | "right") => {
-      const startValue = -screenWidth;
-      const endValue = direction === "right" ? -(screenWidth * 2) : 0;
-      // const startValue = direction === "right" ? -(screenWidth * 2) : 0;
-      // const endValue = direction === "right" ? 0 : -(screenWidth * 2);
+    (month: boolean, direction: "left" | "right") => {
+      const toValue = direction === "right" ? -screenWidth : screenWidth;
 
-      translateX.setValue(startValue);
+      translateX.setValue(0);
 
-      Animated.spring(translateX, {
-        toValue: endValue,
+      Animated.timing(translateX, {
+        toValue: toValue,
         useNativeDriver: true,
-        damping: 20,
-        mass: 0.5,
+        duration: 500,
       }).start(() => {
-        if (direction === "right") {
-          setCurrentDate((prev) => prev.add(1, "month"));
+        if (month) {
+          if (direction === "right") {
+            setCurrentDate((prev) => prev.add(1, "month"));
+          } else {
+            setCurrentDate((prev) => prev.subtract(1, "month"));
+          }
         } else {
-          setCurrentDate((prev) => prev.subtract(1, "month"));
+          if (direction === "right") {
+            setCurrentDate((prev) => prev.add(1, "week"));
+          } else {
+            setCurrentDate((prev) => prev.subtract(1, "week"));
+          }
         }
-        translateX.setValue(-screenWidth);
+        translateX.setValue(0);
       });
     },
     [screenWidth]
   );
-  // const animateTransition = useCallback(
-  //   (direction: "left" | "right") => {
-  //     const startValue = direction === "left" ? -(screenWidth * 2) : 0;
-  //     const endValue = -screenWidth;
-
-  //     // const startValue = -screenWidth;
-  //     // const endValue = direction === "right" ? -(screenWidth * 2) : 0;
-
-  //     translateX.setValue(startValue);
-
-  //     // 먼저 상태 업데이트
-
-  //     Animated.spring(translateX, {
-  //       toValue: endValue,
-  //       useNativeDriver: true,
-  //       damping: 20,
-  //       mass: 0.5,
-  //     }).start(() => {
-  //       if (direction === "right") {
-  //         setCurrentDate((prev) => prev.add(1, "month"));
-  //       } else {
-  //         setCurrentDate((prev) => prev.subtract(1, "month"));
-  //       }
-
-  //       translateX.setValue(startValue);
-  //     });
-  //   },
-  //   [screenWidth]
-  // );
 
   const getMonthData = (date: Dayjs) => {
     const firstDay = date.startOf("month").startOf("week");
@@ -186,24 +161,12 @@ const Calendar = () => {
     return weeks;
   }, [startDay, endDay]);
 
-  // const handlePrevMonth = useCallback(() => {
-  //   setCurrentDate((prev) => prev.subtract(1, "month"));
-  //   setTranslateX(-calendarWidth);
-  // }, [currentDate]);
-
-  // const handleNextMonth = useCallback(() => {
-  //   setCurrentDate((prev) => prev.add(1, "month"));
-  //   setTranslateX(-calendarWidth);
-  // }, [currentDate]);
-
   const handlePrevMonth = useCallback(() => {
-    animateTransition("left");
-    // setCurrentDate((prev) => prev.subtract(1, "month"));
+    animateTransition(true, "left");
   }, [animateTransition]);
 
   const handleNextMonth = useCallback(() => {
-    animateTransition("right");
-    // setCurrentDate((prev) => prev.add(1, "month"));
+    animateTransition(true, "right");
   }, [animateTransition]);
 
   // Week Calendar
@@ -212,13 +175,21 @@ const Calendar = () => {
   );
 
   const currentWeek = date[currentWeekIndex] || date[0];
+  const prevWeek =
+    currentWeekIndex > 0
+      ? date[currentWeekIndex - 1]
+      : getMonthData(currentDate.subtract(1, "month")).slice(-1)[0];
+  const nextWeek =
+    currentWeekIndex < date.length - 1
+      ? date[currentWeekIndex + 1]
+      : getMonthData(currentDate.add(1, "month"))[0];
 
   const handlePrevWeek = useCallback(() => {
-    setCurrentDate((prev) => prev.subtract(1, "week"));
-  }, [currentDate]);
+    animateTransition(false, "left");
+  }, [animateTransition]);
   const handleNextWeek = useCallback(() => {
-    setCurrentDate((prev) => prev.add(1, "week"));
-  }, [currentDate]);
+    animateTransition(false, "right");
+  }, [animateTransition]);
 
   useEffect(() => {
     getMonthData(currentDate);
@@ -240,7 +211,7 @@ const Calendar = () => {
     },
     [holiday]
   );
-
+  // console.log(isMonthView);
   // TOUCH EVENT
   const panResponder = useMemo(
     () =>
@@ -249,225 +220,191 @@ const Calendar = () => {
         onMoveShouldSetPanResponder: () => true,
 
         onPanResponderGrant: () => {
-          // setTranslateX(-calendarWidth);
           translateX.setValue(-screenWidth);
         },
 
         onPanResponderMove: (_, gestureState) => {
-          // setTranslateX(-calendarWidth + gestureState.dx);
-          translateX.setValue(-screenWidth + gestureState.dx);
+          translateX.setValue(+gestureState.dx);
         },
 
         onPanResponderRelease: (_, gestureState) => {
           if (Math.abs(gestureState.dx) > screenWidth * 0.3) {
             if (gestureState.dx > 0) {
-              handlePrevMonth();
+              if (isMonthView) handlePrevMonth();
+              else handlePrevWeek();
             } else {
-              handleNextMonth();
+              if (isMonthView) handleNextMonth();
+              else handleNextWeek();
             }
           } else {
             Animated.spring(translateX, {
-              toValue: -screenWidth,
+              toValue: 0,
               useNativeDriver: true,
             }).start();
           }
-          // setTranslateX(-calendarWidth);
         },
       }),
-    [handlePrevMonth, handleNextMonth, screenWidth]
+    [
+      handlePrevMonth,
+      handleNextMonth,
+      handleNextWeek,
+      handlePrevWeek,
+      screenWidth,
+    ]
   );
 
   return (
-    <View style={styles.calendarConainer}>
-      <View style={styles.changeBtnGroup}>
-        <TouchableOpacity
-          style={[
-            styles.changeBtn,
-            styles.changeBtn1,
-            isMonthView && styles.active,
-          ]}
-          onPress={() => setIsMonthView(true)}
-        >
-          <Text style={[styles.btnText, isMonthView && styles.textActive]}>
-            월간
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.changeBtn,
-            styles.changeBtn2,
-            !isMonthView && styles.active,
-          ]}
-          onPress={() => setIsMonthView(false)}
-        >
-          <Text style={[styles.btnText, !isMonthView && styles.textActive]}>
-            주간
-          </Text>
-        </TouchableOpacity>
-      </View>
-      <Text style={styles.addBtn}>일정 추가하기</Text>
-      <View style={styles.controlContainer}>
-        <View style={styles.titleBox}>
-          <Text style={styles.title}>
-            {year}년 {month}월 {!isMonthView && `${currentWeekIndex + 1}주차`}
-          </Text>
-        </View>
-        <View style={styles.controlBox}>
+    <>
+      {view && <FormModal setView={setView} />}
+      <View style={styles.calendarConainer}>
+        <View style={styles.changeBtnGroup}>
           <TouchableOpacity
-            style={styles.contorlBtn}
-            onPress={isMonthView ? handlePrevMonth : handlePrevWeek}
+            style={[
+              styles.changeBtn,
+              styles.changeBtn1,
+              isMonthView && styles.active,
+            ]}
+            onPress={() => setIsMonthView(true)}
           >
-            <Text style={styles.btnText}>◀</Text>
+            <Text style={[styles.btnText, isMonthView && styles.textActive]}>
+              월간
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.contorlBtn}
-            onPress={isMonthView ? handleNextMonth : handleNextWeek}
+            style={[
+              styles.changeBtn,
+              styles.changeBtn2,
+              !isMonthView && styles.active,
+            ]}
+            onPress={() => setIsMonthView(false)}
           >
-            <Text style={styles.btnText}>▶</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.contorlBtn}
-            onPress={() => {
-              setCurrentDate(dayjs());
-            }}
-          >
-            <Text style={styles.btnText}>오늘</Text>
+            <Text style={[styles.btnText, !isMonthView && styles.textActive]}>
+              주간
+            </Text>
           </TouchableOpacity>
         </View>
-      </View>
-      {/* <View style={styles.calendarWrapper}>
-        <View style={styles.weekdays}>
-          {dayName.map((item, idx) => {
-            const firstChild = idx === 0;
-            const lastChild = idx === 6;
-            return (
-              <Text
-                key={idx}
+        <Text style={styles.addBtn} onPress={() => setView(true)}>
+          일정 추가하기
+        </Text>
+        <View style={styles.controlContainer}>
+          <View style={styles.titleBox}>
+            <Text style={styles.title}>
+              {year}년 {month}월 {!isMonthView && `${currentWeekIndex + 1}주차`}
+            </Text>
+          </View>
+          <View style={styles.controlBox}>
+            <TouchableOpacity
+              style={styles.contorlBtn}
+              onPress={isMonthView ? handlePrevMonth : handlePrevWeek}
+            >
+              <Text style={styles.btnText}>◀</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.contorlBtn}
+              onPress={isMonthView ? handleNextMonth : handleNextWeek}
+            >
+              <Text style={styles.btnText}>▶</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.contorlBtn}
+              onPress={() => {
+                setCurrentDate(dayjs());
+              }}
+            >
+              <Text style={styles.btnText}>오늘</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+        {isMonthView ? (
+          <View
+            {...panResponder.panHandlers}
+            style={[styles.calendarSlider, { width: calendarWidth }]}
+          >
+            <Animated.View
+              style={{
+                flexDirection: "row",
+                transform: [{ translateX: translateValue }],
+                width: scrollWidth,
+              }}
+            >
+              <View style={[styles.calendarWrapper, { width: calendarWidth }]}>
+                <Weekdays />
+                <View style={styles.monthContainer}>
+                  <MonthCalendar
+                    date={prevDate}
+                    currentDate={currentDate.subtract(1, "month")}
+                    getHolidayInfo={getHolidayInfo}
+                  />
+                </View>
+              </View>
+              <View
                 style={[
-                  styles.weekdayText,
-                  firstChild && styles.firstChild,
-                  lastChild && styles.lastChild,
-                  // { width: cellSize },
+                  styles.calendarWrapper,
+                  { width: calendarWidth, height: "auto" },
                 ]}
               >
-                {item}
-              </Text>
-            );
-          })}
-        </View> */}
-      {isMonthView ? (
-        // <MonthCalendar
-        //   date={date}
-        //   currentDate={currentDate}
-        //   getHolidayInfo={getHolidayInfo}
-        // />
-        <View
-          {...panResponder.panHandlers}
-          style={[styles.calendarSlider, { width: calendarWidth }]}
-        >
-          <Animated.View
-            style={{
-              // width: scrollWidth,
-              flexDirection: "row",
-              transform: [{ translateX: translateValue }],
-              width: scrollWidth,
-            }}
-          >
-            <View style={[styles.calendarWrapper, { width: calendarWidth }]}>
-              <View style={styles.weekdays}>
-                {dayName.map((item, idx) => {
-                  const firstChild = idx === 0;
-                  const lastChild = idx === 6;
-                  return (
-                    <Text
-                      key={idx}
-                      style={[
-                        styles.weekdayText,
-                        firstChild && styles.firstChild,
-                        lastChild && styles.lastChild,
-                        // { width: cellSize },
-                      ]}
-                    >
-                      {item}
-                    </Text>
-                  );
-                })}
+                <Weekdays />
+                <View style={styles.monthContainer}>
+                  <MonthCalendar
+                    date={date}
+                    currentDate={currentDate}
+                    getHolidayInfo={getHolidayInfo}
+                  />
+                </View>
               </View>
-              <View style={styles.monthContainer}>
-                <MonthCalendar
-                  date={prevDate}
-                  currentDate={currentDate.subtract(1, "month")}
+              <View style={[styles.calendarWrapper, { width: calendarWidth }]}>
+                <Weekdays />
+                <View style={styles.monthContainer}>
+                  <MonthCalendar
+                    date={nextDate}
+                    currentDate={currentDate.add(1, "month")}
+                    getHolidayInfo={getHolidayInfo}
+                  />
+                </View>
+              </View>
+            </Animated.View>
+          </View>
+        ) : (
+          <View
+            {...panResponder.panHandlers}
+            style={[styles.calendarSlider, { width: calendarWidth }]}
+          >
+            <Animated.View
+              style={{
+                flexDirection: "row",
+                transform: [{ translateX: translateValue }],
+                width: scrollWidth,
+              }}
+            >
+              <View style={[styles.calendarWrapper, { width: calendarWidth }]}>
+                <Weekdays />
+                <WeekCalendar
+                  currentWeek={prevWeek}
+                  currentDate={currentDate.subtract(1, "week")}
                   getHolidayInfo={getHolidayInfo}
                 />
               </View>
-            </View>
-            <View style={[styles.calendarWrapper, { width: calendarWidth }]}>
-              <View style={styles.weekdays}>
-                {dayName.map((item, idx) => {
-                  const firstChild = idx === 0;
-                  const lastChild = idx === 6;
-                  return (
-                    <Text
-                      key={idx}
-                      style={[
-                        styles.weekdayText,
-                        firstChild && styles.firstChild,
-                        lastChild && styles.lastChild,
-                        // { width: cellSize },
-                      ]}
-                    >
-                      {item}
-                    </Text>
-                  );
-                })}
-              </View>
-              <View style={styles.monthContainer}>
-                <MonthCalendar
-                  date={date}
+              <View style={[styles.calendarWrapper, { width: calendarWidth }]}>
+                <Weekdays />
+                <WeekCalendar
+                  currentWeek={currentWeek}
                   currentDate={currentDate}
                   getHolidayInfo={getHolidayInfo}
                 />
               </View>
-            </View>
-            <View style={[styles.calendarWrapper, { width: calendarWidth }]}>
-              <View style={styles.weekdays}>
-                {dayName.map((item, idx) => {
-                  const firstChild = idx === 0;
-                  const lastChild = idx === 6;
-                  return (
-                    <Text
-                      key={idx}
-                      style={[
-                        styles.weekdayText,
-                        firstChild && styles.firstChild,
-                        lastChild && styles.lastChild,
-                        // { width: cellSize },
-                      ]}
-                    >
-                      {item}
-                    </Text>
-                  );
-                })}
-              </View>
-              <View style={styles.monthContainer}>
-                <MonthCalendar
-                  date={nextDate}
-                  currentDate={currentDate.add(1, "month")}
+              <View style={[styles.calendarWrapper, { width: calendarWidth }]}>
+                <Weekdays />
+                <WeekCalendar
+                  currentWeek={nextWeek}
+                  currentDate={currentDate.add(1, "week")}
                   getHolidayInfo={getHolidayInfo}
                 />
               </View>
-            </View>
-          </Animated.View>
-        </View>
-      ) : (
-        <WeekCalendar
-          currentWeek={currentWeek}
-          currentDate={currentDate}
-          getHolidayInfo={getHolidayInfo}
-        />
-      )}
-    </View>
-    // </View>
+            </Animated.View>
+          </View>
+        )}
+      </View>
+    </>
   );
 };
 
@@ -565,33 +502,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   calendarWrapper: {
-    // width: "33.33%",
+    alignSelf: "flex-start",
     color: "#999",
-    // overflow: "hidden",
+    height: "auto",
     marginHorizontal: 10,
-    // gap: 10,
     borderRadius: 10,
-    // overflow: "hidden",
-    // borderBottomWidth: 1,
+    overflow: "hidden",
     backgroundColor: "#fff",
     borderWidth: 1,
     borderColor: "rgb(216,216,216)",
-  },
-  weekdays: {
-    width: "100%",
-    flexDirection: "row",
-    justifyContent: "space-around",
-    // marginBottom: 5,
-    backgroundColor: "beige",
-    paddingBottom: 10,
-    paddingTop: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgb(216,216,216)",
-  },
-  weekdayText: {
-    textAlign: "center",
-    fontFamily: "NanumBarunGothic",
-    flex: 1,
   },
   firstChild: {
     color: "red",
