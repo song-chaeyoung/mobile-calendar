@@ -1,4 +1,5 @@
 import dayjs, { Dayjs } from "dayjs";
+import "dayjs/locale/ko";
 import React, {
   useCallback,
   useEffect,
@@ -10,6 +11,7 @@ import {
   Animated,
   Dimensions,
   PanResponder,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -51,7 +53,7 @@ const Calendar = () => {
   }, []);
 
   const animateTransition = useCallback(
-    (month: boolean, direction: "left" | "right") => {
+    (direction: "left" | "right") => {
       const toValue = direction === "right" ? -screenWidth : screenWidth;
 
       translateX.setValue(0);
@@ -61,13 +63,13 @@ const Calendar = () => {
         useNativeDriver: true,
         duration: 500,
       }).start(() => {
-        if (month) {
+        if (isMonthView === true) {
           if (direction === "right") {
             setCurrentDate((prev) => prev.add(1, "month"));
           } else {
             setCurrentDate((prev) => prev.subtract(1, "month"));
           }
-        } else {
+        } else if (isMonthView === false) {
           if (direction === "right") {
             setCurrentDate((prev) => prev.add(1, "week"));
           } else {
@@ -77,7 +79,7 @@ const Calendar = () => {
         translateX.setValue(0);
       });
     },
-    [screenWidth]
+    [screenWidth, isMonthView]
   );
 
   const getMonthData = (date: Dayjs) => {
@@ -162,11 +164,11 @@ const Calendar = () => {
   }, [startDay, endDay]);
 
   const handlePrevMonth = useCallback(() => {
-    animateTransition(true, "left");
+    animateTransition("left");
   }, [animateTransition]);
 
   const handleNextMonth = useCallback(() => {
-    animateTransition(true, "right");
+    animateTransition("right");
   }, [animateTransition]);
 
   // Week Calendar
@@ -185,10 +187,11 @@ const Calendar = () => {
       : getMonthData(currentDate.add(1, "month"))[0];
 
   const handlePrevWeek = useCallback(() => {
-    animateTransition(false, "left");
+    animateTransition("left");
   }, [animateTransition]);
+
   const handleNextWeek = useCallback(() => {
-    animateTransition(false, "right");
+    animateTransition("right");
   }, [animateTransition]);
 
   useEffect(() => {
@@ -211,7 +214,7 @@ const Calendar = () => {
     },
     [holiday]
   );
-  // console.log(isMonthView);
+
   // TOUCH EVENT
   const panResponder = useMemo(
     () =>
@@ -250,6 +253,7 @@ const Calendar = () => {
       handleNextWeek,
       handlePrevWeek,
       screenWidth,
+      isMonthView,
     ]
   );
 
@@ -410,7 +414,7 @@ const Calendar = () => {
 
 const styles = StyleSheet.create({
   calendarConainer: {
-    marginTop: 80,
+    marginTop: 30,
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "flex-start",
