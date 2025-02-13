@@ -11,7 +11,6 @@ import {
   Animated,
   Dimensions,
   PanResponder,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -27,12 +26,14 @@ import FormModal from "./FormModal";
 import Weekdays from "./Weekdays";
 import WeekCalendar from "./WeekCalendar";
 import MonthCalendar from "./MonthCalendar";
+import { useEventStore } from "@/stores/eventStore";
 
 const Calendar = () => {
   dayjs.locale("ko");
   const [currentDate, setCurrentDate] = useState(dayjs());
   const { isMonthView, setIsMonthView } = useCalendarUiStore();
   const { holiday, fetchHoliday } = useHolidayStore();
+  const { event, selectDay, setSelectedEvent } = useEventStore();
 
   const screenWidth = Dimensions.get("window").width;
   const scrollWidth = screenWidth * 3;
@@ -42,6 +43,10 @@ const Calendar = () => {
   const [translateValue, setTranslateValue] = useState(0);
 
   const [view, setView] = useState(false);
+
+  useEffect(() => {
+    setSelectedEvent();
+  }, [selectDay, event]);
 
   useEffect(() => {
     translateX.addListener(({ value }) => {
@@ -220,14 +225,26 @@ const Calendar = () => {
     () =>
       PanResponder.create({
         onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: (evt, gestureState) => {
+          return (
+            Math.abs(gestureState.dx) > 20 || Math.abs(gestureState.dy) > 20
+          );
+        },
 
-        onPanResponderGrant: () => {
-          translateX.setValue(-screenWidth);
+        onPanResponderGrant: (_, gestureState) => {
+          if (
+            Math.abs(gestureState.dx) > 20 ||
+            Math.abs(gestureState.dy) > 20
+          ) {
+            translateX.setValue(-screenWidth);
+          }
         },
 
         onPanResponderMove: (_, gestureState) => {
-          translateX.setValue(+gestureState.dx);
+          // translateX.setValue(+gestureState.dx);
+          if (Math.abs(gestureState.dx) > 20) {
+            translateX.setValue(gestureState.dx);
+          }
         },
 
         onPanResponderRelease: (_, gestureState) => {

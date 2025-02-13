@@ -1,4 +1,5 @@
 import Calendar from "@/components/Calendar";
+import EventList from "@/components/EventList";
 import { StatusBar } from "expo-status-bar";
 import React from "react";
 import { Dimensions, StyleSheet, Text, View } from "react-native";
@@ -13,6 +14,7 @@ const Index = () => {
       <View style={styles.container}>
         {/* <Text>홈화면</Text> */}
         <Calendar />
+        <EventList />
       </View>
     </SafeAreaView>
   );

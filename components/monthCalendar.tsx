@@ -1,7 +1,8 @@
 import { holidayItemType } from "@/stores/calendarStore";
+import { StoreEventType, useEventStore } from "@/stores/eventStore";
 import dayjs, { Dayjs } from "dayjs";
-import React from "react";
-import { Dimensions, StyleSheet, Text, View } from "react-native";
+import React, { useEffect } from "react";
+import { StyleSheet, Text, View, ViewStyle } from "react-native";
 
 interface propsType {
   date: Dayjs[][];
@@ -11,8 +12,8 @@ interface propsType {
 }
 
 const MonthCalendar = ({ date, currentDate, getHolidayInfo }: propsType) => {
-  // console.log(cellSize);
-  // const {}
+  const { event, setSelectDay } = useEventStore();
+
   return (
     <>
       {date.map((week: Dayjs[], idx) => (
@@ -22,6 +23,17 @@ const MonthCalendar = ({ date, currentDate, getHolidayInfo }: propsType) => {
             const lastChild = index === 6;
             const holidayInfo = getHolidayInfo(day);
             const dayKey = day.format("YYMMDD");
+            const dayEvents =
+              event?.filter(
+                (item) =>
+                  dayjs(item.startDateTime).format("YYMMDD") <= dayKey &&
+                  dayKey <= dayjs(item.endDateTime).format("YYMMDD")
+              ) || [];
+
+            const sortedEvent =
+              dayEvents.length >= 5 ? dayEvents.slice(0, 4) : dayEvents;
+
+            // console.log(day.format("MMDD"), dayEvents);
 
             return (
               <View
@@ -30,6 +42,7 @@ const MonthCalendar = ({ date, currentDate, getHolidayInfo }: propsType) => {
                   styles.day,
                   dayKey === dayjs().format("YYMMDD") && styles.today,
                 ]}
+                onTouchStart={() => setSelectDay(day.format("YYMMDD"))}
               >
                 <Text
                   style={[
@@ -52,6 +65,18 @@ const MonthCalendar = ({ date, currentDate, getHolidayInfo }: propsType) => {
                 >
                   {holidayInfo && holidayInfo.dateName}
                 </Text>
+
+                <View style={styles.eventItemWrapper}>
+                  {sortedEvent.map((event: StoreEventType) => (
+                    <View
+                      key={event.id}
+                      style={[
+                        styles.eventItem,
+                        styles[event.category as keyof typeof styles],
+                      ]}
+                    ></View>
+                  ))}
+                </View>
               </View>
             );
           })}
@@ -71,7 +96,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
   },
   day: {
-    height: 60,
+    height: 50,
     flex: 1,
     textAlign: "center",
     fontFamily: "NanumBarunGothic",
@@ -80,6 +105,8 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     paddingHorizontal: 5,
     fontSize: 16,
+    justifyContent: "center",
+    alignItems: "center",
   },
   firstChild: {
     color: "red",
@@ -100,6 +127,27 @@ const styles = StyleSheet.create({
   },
   grey: {
     opacity: 0.5,
+  },
+  eventItemWrapper: {
+    flexDirection: "row",
+    gap: 4,
+  },
+  eventItem: {
+    width: 6,
+    height: 6,
+    borderRadius: 10,
+  },
+  10: {
+    backgroundColor: "lightcoral",
+  },
+  20: {
+    backgroundColor: "lightsalmon",
+  },
+  30: {
+    backgroundColor: "lightpink",
+  },
+  40: {
+    backgroundColor: "lightskyblue",
   },
 });
 

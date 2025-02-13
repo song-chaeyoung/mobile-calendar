@@ -1,4 +1,5 @@
 import { holidayItemType } from "@/stores/calendarStore";
+import { useEventStore } from "@/stores/eventStore";
 import dayjs, { Dayjs } from "dayjs";
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
@@ -15,6 +16,8 @@ const WeekCalendar = ({
   currentWeek,
   getHolidayInfo,
 }: propsType) => {
+  const { event, setSelectDay } = useEventStore();
+
   return (
     <View style={styles.weekContainer}>
       {currentWeek.map((day: Dayjs, index) => {
@@ -22,6 +25,12 @@ const WeekCalendar = ({
         const lastChild = index === 6;
         const holidayInfo = getHolidayInfo(day);
         const dayKey = day.format("YYMMDD");
+        const dayEvents =
+          event?.filter(
+            (item) =>
+              dayjs(item.startDateTime).format("YYMMDD") <= dayKey &&
+              dayKey <= dayjs(item.endDateTime).format("YYMMDD")
+          ) || [];
 
         return (
           <View
@@ -31,6 +40,7 @@ const WeekCalendar = ({
               dayKey === dayjs().format("YYMMDD") && styles.today,
               lastChild && styles.lastChildBox,
             ]}
+            onTouchStart={() => setSelectDay(day.format("YYMMDD"))}
           >
             <Text
               style={[
