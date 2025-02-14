@@ -23,18 +23,9 @@ export const useEventStore = create<UseEventStoreType>((set, get) => ({
   PostEvent: (arg) => {
     const newData = { ...arg, id: Number(new Date()) };
 
-    // set((state) => ({ event: [...state.event, newData] }));
-
     set((state) => {
-      console.log(
-        "Before update:",
-        state.event.map((e) => e.startDateTime)
-      );
       const updatedEvent = [...state.event, newData];
-      console.log(
-        "After update:",
-        updatedEvent.map((e) => e.startDateTime)
-      );
+
       return { event: updatedEvent };
     });
   },
@@ -74,4 +65,20 @@ export const useEventStore = create<UseEventStoreType>((set, get) => ({
   },
 }));
 
-export const useSelectdayEventStore = () => {};
+interface nowEventStoreType {
+  showDetail: boolean;
+  setShowDetail: (arg: boolean) => void;
+  edit: boolean;
+  setEdit: (arg: boolean) => void;
+  nowEvent: StoreEventType | undefined;
+  setNowEvent: (arg: StoreEventType) => void;
+}
+
+export const useNowEventStore = create<nowEventStoreType>((set) => ({
+  showDetail: false,
+  setShowDetail: (arg) => set({ showDetail: arg }),
+  edit: false,
+  setEdit: (arg) => set({ edit: arg }),
+  nowEvent: undefined,
+  setNowEvent: (data) => set({ nowEvent: data }),
+}));

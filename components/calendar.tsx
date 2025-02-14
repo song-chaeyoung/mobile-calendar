@@ -26,14 +26,17 @@ import FormModal from "./FormModal";
 import Weekdays from "./Weekdays";
 import WeekCalendar from "./WeekCalendar";
 import MonthCalendar from "./MonthCalendar";
-import { useEventStore } from "@/stores/eventStore";
+import { useEventStore, useNowEventStore } from "@/stores/eventStore";
+import DetailEventModal from "./DetailEventModal";
 
 const Calendar = () => {
   dayjs.locale("ko");
   const [currentDate, setCurrentDate] = useState(dayjs());
+
   const { isMonthView, setIsMonthView } = useCalendarUiStore();
   const { holiday, fetchHoliday } = useHolidayStore();
   const { event, selectDay, setSelectedEvent } = useEventStore();
+  const { edit, showDetail } = useNowEventStore();
 
   const screenWidth = Dimensions.get("window").width;
   const scrollWidth = screenWidth * 3;
@@ -225,7 +228,7 @@ const Calendar = () => {
     () =>
       PanResponder.create({
         onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: (evt, gestureState) => {
+        onMoveShouldSetPanResponder: (_, gestureState) => {
           return (
             Math.abs(gestureState.dx) > 20 || Math.abs(gestureState.dy) > 20
           );
@@ -277,6 +280,8 @@ const Calendar = () => {
   return (
     <>
       {view && <FormModal setView={setView} />}
+      {showDetail && <DetailEventModal />}
+      {/* <DetailEventModal visble={showDetail} /> */}
       <View style={styles.calendarConainer}>
         <View style={styles.changeBtnGroup}>
           <TouchableOpacity

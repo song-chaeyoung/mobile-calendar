@@ -1,41 +1,63 @@
-import { useEventStore } from "@/stores/eventStore";
+import ModalScreen from "@/app/modal";
+import { useEventStore, useNowEventStore } from "@/stores/eventStore";
 import dayjs from "dayjs";
-import React from "react";
+import { Link } from "expo-router";
+import React, { useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 const EventList = () => {
   const { selectDay, selectedEvent } = useEventStore();
+  const { nowEvent, setNowEvent, setShowDetail } = useNowEventStore();
+  // const [isShow, setIsShow] = useState(false);
 
   const sortedEvent = [...selectedEvent].sort(
     (a, b) => a.startDateTime - b.startDateTime
   );
 
+  // console.log(nowEvent);
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>{selectDay}의 일정</Text>
-      <ScrollView contentInset={{ top: 10, left: 10 }}>
-        <View style={styles.itemBox}>
-          {sortedEvent.map((event) => (
-            <View key={event.id} style={styles.item}>
-              <View style={styles.itemLeft}>
-                <View
-                  style={[
-                    styles.categoryItem,
-                    styles[event.category as keyof typeof styles],
-                  ]}
-                ></View>
-                <Text>{event.title}</Text>
+    <>
+      {/* {isShow && <ModalScreen children={<Text>event list</Text>} />} */}
+      <View style={styles.container}>
+        <Text style={styles.title}>{selectDay}의 일정</Text>
+        <ScrollView
+          contentInset={{ bottom: 30 }}
+          showsVerticalScrollIndicator={false}
+          nestedScrollEnabled={true}
+          contentContainerStyle={{ flexGrow: 1 }}
+        >
+          <View style={styles.itemBox}>
+            {sortedEvent.map((event) => (
+              // <Link href={"/modal"} key={event.id} style={{ width: "100%" }}>
+              <View
+                style={styles.item}
+                onTouchStart={() => {
+                  setShowDetail(true);
+                  setNowEvent(event);
+                  // setIsShow((prev) => !prev);
+                }}
+              >
+                <View style={styles.itemLeft}>
+                  <View
+                    style={[
+                      styles.categoryItem,
+                      styles[event.category as keyof typeof styles],
+                    ]}
+                  ></View>
+                  <Text>{event.title}</Text>
+                </View>
+                <Text>
+                  {dayjs(event.startDateTime).format("HH:mm")} -{" "}
+                  {dayjs(event.endDateTime).format("HH:mm")}
+                </Text>
               </View>
-              <Text>
-                {dayjs(event.startDateTime).format("HH:mm")} -{" "}
-                {dayjs(event.endDateTime).format("HH:mm")}
-              </Text>
-              {/* <Text>}</Text> */}
-            </View>
-          ))}
-        </View>
-      </ScrollView>
-    </View>
+              // </Link>
+            ))}
+          </View>
+        </ScrollView>
+      </View>
+    </>
   );
 };
 
@@ -44,6 +66,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: "62%",
     width: "100%",
+    height: "38%",
     paddingHorizontal: 10,
     paddingVertical: 20,
     borderTopWidth: 1,

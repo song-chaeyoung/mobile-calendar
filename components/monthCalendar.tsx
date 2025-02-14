@@ -12,7 +12,7 @@ interface propsType {
 }
 
 const MonthCalendar = ({ date, currentDate, getHolidayInfo }: propsType) => {
-  const { event, setSelectDay } = useEventStore();
+  const { event, selectDay, setSelectDay } = useEventStore();
 
   return (
     <>
@@ -33,16 +33,15 @@ const MonthCalendar = ({ date, currentDate, getHolidayInfo }: propsType) => {
             const sortedEvent =
               dayEvents.length >= 5 ? dayEvents.slice(0, 4) : dayEvents;
 
-            // console.log(day.format("MMDD"), dayEvents);
-
             return (
               <View
                 key={index}
                 style={[
                   styles.day,
+                  selectDay === day.format("YYMMDD") && styles.selectDay,
                   dayKey === dayjs().format("YYMMDD") && styles.today,
                 ]}
-                onTouchStart={() => setSelectDay(day.format("YYMMDD"))}
+                onTouchEnd={() => setSelectDay(day.format("YYMMDD"))}
               >
                 <Text
                   style={[
@@ -124,6 +123,9 @@ const styles = StyleSheet.create({
   },
   today: {
     backgroundColor: "lightblue",
+  },
+  selectDay: {
+    backgroundColor: "rgba(220,220,220,0.5)",
   },
   grey: {
     opacity: 0.5,

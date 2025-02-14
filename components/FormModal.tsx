@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Button,
   Keyboard,
@@ -11,8 +11,9 @@ import {
   TouchableWithoutFeedback,
   KeyboardAvoidingView,
   Alert,
-  Platform,
   ScrollView,
+  PanResponder,
+  Animated,
 } from "react-native";
 import Dropdown from "./Dropdown";
 import dayjs from "dayjs";
@@ -21,8 +22,6 @@ import { EventType } from "@/types/event";
 import RNDateTimePicker from "@react-native-community/datetimepicker";
 import { useDeviceStore } from "@/stores/deviceStore";
 import { useEventStore } from "@/stores/eventStore";
-import { Picker } from "@react-native-picker/picker";
-import PickerExample from "./PickerExample";
 
 const category = [
   {
@@ -86,6 +85,9 @@ const FormModal = ({ setView }: Props) => {
   dayjs.locale("ko");
   const { ios } = useDeviceStore();
   const { PostEvent } = useEventStore();
+
+  // const [modalVisible, setModalVisible] = useState(false);
+  const translateY = useRef(new Animated.Value(0)).current;
 
   const [showPicker, setShowPicker] = useState({
     type: null as "startDate" | "startTime" | "endDate" | "endTime" | null,
@@ -188,6 +190,41 @@ const FormModal = ({ setView }: Props) => {
     setView(false);
   };
 
+  const handleEdit = () => {};
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        console.log("panResponder 시작");
+        console.log(gestureState.dy);
+        return gestureState.dy > 10; // 아래로 이동하면 터치 감지
+      },
+      onPanResponderMove: (_, gestureState) => {
+        if (gestureState.dy > 0) {
+          translateY.setValue(gestureState.dy);
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dy > 100) {
+          // 일정 거리 이상 스와이프하면 모달 닫기
+          Animated.timing(translateY, {
+            toValue: 300, // 바깥으로 나가는 애니메이션
+            duration: 200,
+            useNativeDriver: true,
+          }).start(() => setView(false));
+        } else {
+          // 다시 제자리로 돌아옴
+          Animated.timing(translateY, {
+            toValue: 0,
+            duration: 200,
+            useNativeDriver: true,
+          }).start();
+        }
+      },
+    })
+  ).current;
+
   const renderDateTimePicker = (type: string, value: Date) => {
     const isDatePicker = type.includes("Date");
     const isStart = type.includes("start");
@@ -239,7 +276,7 @@ const FormModal = ({ setView }: Props) => {
     <Modal
       transparent={false}
       animationType="slide"
-      presentationStyle="formSheet"
+      // presentationStyle="formSheet"
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <KeyboardAvoidingView
@@ -252,72 +289,75 @@ const FormModal = ({ setView }: Props) => {
               keyboardShouldPersistTaps="handled"
             >
               <View style={styles.container}>
-                <Text style={styles.title}>일정 추가하기</Text>
-                <View style={styles.content}>
-                  <View style={styles.contentBox}>
-                    <Text style={styles.textLabel}>카테고리</Text>
-                    {/* <PickerExample /> */}
-                    <Dropdown data={category} width="70%" setMenu={setForm} />
-                  </View>
-                  <View style={styles.contentBox}>
-                    <Text style={styles.textLabel}>일정 제목</Text>
-                    <TextInput
-                      style={styles.textInput}
-                      placeholder="일정제목"
-                      placeholderTextColor={"#666"}
-                      onChangeText={(value) =>
-                        setForm((prev) => ({ ...prev, title: value }))
-                      }
-                    />
-                  </View>
-                  <View style={styles.contentBox}>
-                    <Text style={styles.textLabel}>일정 시작</Text>
-                    <View style={ios ? styles.iosTimeBox : styles.timeBox}>
-                      {renderDateTimePicker(
-                        "startDate",
-                        new Date(form.startDateTime)
-                      )}
-                      {renderDateTimePicker(
-                        "startTime",
-                        new Date(form.startDateTime)
-                      )}
+                <View style={styles.topBar}></View>
+                <View style={styles.contentContainer}>
+                  <Text style={styles.title}>일정 추가하기</Text>
+                  <View style={styles.content}>
+                    <View style={styles.contentBox}>
+                      <Text style={styles.textLabel}>카테고리</Text>
+                      {/* <PickerExample /> */}
+                      <Dropdown data={category} width="70%" setMenu={setForm} />
+                    </View>
+                    <View style={styles.contentBox}>
+                      <Text style={styles.textLabel}>일정 제목</Text>
+                      <TextInput
+                        style={styles.textInput}
+                        placeholder="일정제목"
+                        placeholderTextColor={"#666"}
+                        onChangeText={(value) =>
+                          setForm((prev) => ({ ...prev, title: value }))
+                        }
+                      />
+                    </View>
+                    <View style={styles.contentBox}>
+                      <Text style={styles.textLabel}>일정 시작</Text>
+                      <View style={ios ? styles.iosTimeBox : styles.timeBox}>
+                        {renderDateTimePicker(
+                          "startDate",
+                          new Date(form.startDateTime)
+                        )}
+                        {renderDateTimePicker(
+                          "startTime",
+                          new Date(form.startDateTime)
+                        )}
+                      </View>
+                    </View>
+                    <View style={styles.contentBox}>
+                      <Text style={styles.textLabel}>일정 종료</Text>
+                      <View style={ios ? styles.iosTimeBox : styles.timeBox}>
+                        {renderDateTimePicker(
+                          "endDate",
+                          new Date(form.endDateTime)
+                        )}
+                        {renderDateTimePicker(
+                          "endTime",
+                          new Date(form.endDateTime)
+                        )}
+                      </View>
+                    </View>
+                    <View style={styles.contentBox}>
+                      <Text style={styles.textLabel}>일정 내용</Text>
+                      <TextInput
+                        style={styles.textArea}
+                        placeholder="일정내용"
+                        multiline={true}
+                        onChangeText={(value) =>
+                          setForm((prev) => ({ ...prev, content: value }))
+                        }
+                      />
+                    </View>
+                    <View style={styles.contentBox}>
+                      <Text style={styles.textLabel}>참석자</Text>
+                      <TextInput
+                        style={styles.textInput}
+                        placeholder="참석자 목록"
+                      />
                     </View>
                   </View>
-                  <View style={styles.contentBox}>
-                    <Text style={styles.textLabel}>일정 종료</Text>
-                    <View style={ios ? styles.iosTimeBox : styles.timeBox}>
-                      {renderDateTimePicker(
-                        "endDate",
-                        new Date(form.endDateTime)
-                      )}
-                      {renderDateTimePicker(
-                        "endTime",
-                        new Date(form.endDateTime)
-                      )}
-                    </View>
+                  <View style={styles.btnGroup}>
+                    <Button title="취소" onPress={() => setView(false)} />
+                    <Button title="등록" onPress={handleSubmit} />
                   </View>
-                  <View style={styles.contentBox}>
-                    <Text style={styles.textLabel}>일정 내용</Text>
-                    <TextInput
-                      style={styles.textArea}
-                      placeholder="일정내용"
-                      multiline={true}
-                      onChangeText={(value) =>
-                        setForm((prev) => ({ ...prev, content: value }))
-                      }
-                    />
-                  </View>
-                  <View style={styles.contentBox}>
-                    <Text style={styles.textLabel}>참석자</Text>
-                    <TextInput
-                      style={styles.textInput}
-                      placeholder="참석자 목록"
-                    />
-                  </View>
-                </View>
-                <View style={styles.btnGroup}>
-                  <Button title="취소" onPress={() => setView(false)} />
-                  <Button title="등록" onPress={handleSubmit} />
                 </View>
               </View>
             </ScrollView>
@@ -330,7 +370,17 @@ const FormModal = ({ setView }: Props) => {
 
 const styles = StyleSheet.create({
   container: {
-    marginTop: 20,
+    marginTop: 25,
+    alignItems: "center",
+  },
+  topBar: {
+    width: 80,
+    height: 3,
+    backgroundColor: "grey",
+    borderRadius: 10,
+  },
+  contentContainer: {
+    // marginTop: 20,
     marginBottom: 60,
     padding: 50,
     gap: 60,
