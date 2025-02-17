@@ -25,12 +25,13 @@ const EventList = () => {
           contentInset={{ bottom: 30 }}
           showsVerticalScrollIndicator={false}
           nestedScrollEnabled={true}
-          contentContainerStyle={{ flexGrow: 1 }}
+          // contentContainerStyle={{ flexGrow: 1 }}
         >
           <View style={styles.itemBox}>
             {sortedEvent.map((event) => (
               // <Link href={"/modal"} key={event.id} style={{ width: "100%" }}>
               <View
+                key={event.id}
                 style={styles.item}
                 onTouchStart={() => {
                   setShowDetail(true);
@@ -63,10 +64,11 @@ const EventList = () => {
 
 const styles = StyleSheet.create({
   container: {
-    position: "absolute",
-    top: "62%",
+    // flex: 1,
+    // position: "absolute",
+    // top: "62%",
     width: "100%",
-    height: "38%",
+    // height: "38%",
     paddingHorizontal: 10,
     paddingVertical: 20,
     borderTopWidth: 1,

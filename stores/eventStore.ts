@@ -71,7 +71,7 @@ interface nowEventStoreType {
   edit: boolean;
   setEdit: (arg: boolean) => void;
   nowEvent: StoreEventType | undefined;
-  setNowEvent: (arg: StoreEventType) => void;
+  setNowEvent: (arg: StoreEventType | undefined) => void;
 }
 
 export const useNowEventStore = create<nowEventStoreType>((set) => ({

@@ -192,38 +192,38 @@ const FormModal = ({ setView }: Props) => {
 
   const handleEdit = () => {};
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        console.log("panResponder 시작");
-        console.log(gestureState.dy);
-        return gestureState.dy > 10; // 아래로 이동하면 터치 감지
-      },
-      onPanResponderMove: (_, gestureState) => {
-        if (gestureState.dy > 0) {
-          translateY.setValue(gestureState.dy);
-        }
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dy > 100) {
-          // 일정 거리 이상 스와이프하면 모달 닫기
-          Animated.timing(translateY, {
-            toValue: 300, // 바깥으로 나가는 애니메이션
-            duration: 200,
-            useNativeDriver: true,
-          }).start(() => setView(false));
-        } else {
-          // 다시 제자리로 돌아옴
-          Animated.timing(translateY, {
-            toValue: 0,
-            duration: 200,
-            useNativeDriver: true,
-          }).start();
-        }
-      },
-    })
-  ).current;
+  // const panResponder = useRef(
+  //   PanResponder.create({
+  //     onStartShouldSetPanResponder: () => true,
+  //     onMoveShouldSetPanResponder: (_, gestureState) => {
+  //       console.log("panResponder 시작");
+  //       console.log(gestureState.dy);
+  //       return gestureState.dy > 10; // 아래로 이동하면 터치 감지
+  //     },
+  //     onPanResponderMove: (_, gestureState) => {
+  //       if (gestureState.dy > 0) {
+  //         translateY.setValue(gestureState.dy);
+  //       }
+  //     },
+  //     onPanResponderRelease: (_, gestureState) => {
+  //       if (gestureState.dy > 100) {
+  //         // 일정 거리 이상 스와이프하면 모달 닫기
+  //         Animated.timing(translateY, {
+  //           toValue: 300, // 바깥으로 나가는 애니메이션
+  //           duration: 200,
+  //           useNativeDriver: true,
+  //         }).start(() => setView(false));
+  //       } else {
+  //         // 다시 제자리로 돌아옴
+  //         Animated.timing(translateY, {
+  //           toValue: 0,
+  //           duration: 200,
+  //           useNativeDriver: true,
+  //         }).start();
+  //       }
+  //     },
+  //   })
+  // ).current;
 
   const renderDateTimePicker = (type: string, value: Date) => {
     const isDatePicker = type.includes("Date");
@@ -276,7 +276,8 @@ const FormModal = ({ setView }: Props) => {
     <Modal
       transparent={false}
       animationType="slide"
-      // presentationStyle="formSheet"
+      // style={styles.modal}
+      presentationStyle="formSheet"
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <KeyboardAvoidingView
@@ -369,6 +370,9 @@ const FormModal = ({ setView }: Props) => {
 };
 
 const styles = StyleSheet.create({
+  // modal: {
+  //   flex: 0.6,
+  // },
   container: {
     marginTop: 25,
     alignItems: "center",

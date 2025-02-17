@@ -11,24 +11,31 @@ const windowHeight = Dimensions.get("window").height;
 const Index = () => {
   return (
     <SafeAreaView style={{ flex: 1 }}>
-      <>
-        <StatusBar style="auto" />
-        <View style={styles.container}>
-          {/* <Text>홈화면</Text> */}
+      <StatusBar style="auto" />
+      <View style={styles.container}>
+        <View style={styles.calendarContainer}>
           <Calendar />
-          {/* <Link href={"/modal"}>모달열기</Link> */}
+        </View>
+        <View style={styles.listContainer}>
           <EventList />
         </View>
-      </>
+      </View>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
     backgroundColor: "#fff",
     minHeight: windowHeight,
     height: "100%",
+  },
+  calendarContainer: {
+    flex: 1.5,
+  },
+  listContainer: {
+    flex: 1,
   },
 });
 

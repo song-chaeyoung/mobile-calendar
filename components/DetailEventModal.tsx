@@ -1,8 +1,12 @@
-import { useNowEventStore } from "@/stores/eventStore";
+import {
+  StoreEventType,
+  useEventStore,
+  useNowEventStore,
+} from "@/stores/eventStore";
 import dayjs from "dayjs";
 import React from "react";
-import { TouchableOpacity, TouchableWithoutFeedback } from "react-native";
-import { Platform, StyleSheet, Text, View } from "react-native";
+import { Alert, TouchableOpacity } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import Modal from "react-native-modal";
 
 export const categoryArr: Record<string, string> = {
@@ -13,7 +17,31 @@ export const categoryArr: Record<string, string> = {
 };
 
 const DetailEventModal = () => {
-  const { nowEvent, showDetail, setShowDetail } = useNowEventStore();
+  const { DeleteEvent } = useEventStore();
+  const { nowEvent, setNowEvent, showDetail, setShowDetail } =
+    useNowEventStore();
+
+  const deleteEvent = () => {
+    Alert.alert(
+      "일정 삭제",
+      "일정을 삭제하시겠습니까?",
+      [
+        {
+          text: "취소",
+          style: "cancel",
+        },
+        {
+          text: "확인",
+          onPress: () => {
+            DeleteEvent(nowEvent as StoreEventType);
+            setShowDetail(false);
+            setNowEvent(undefined);
+          },
+        },
+      ],
+      { cancelable: false }
+    );
+  };
 
   if (!nowEvent) {
     return null;
@@ -33,6 +61,8 @@ const DetailEventModal = () => {
       onSwipeComplete={() => setShowDetail(false)}
       onBackdropPress={() => setShowDetail(false)}
       swipeDirection="down"
+      // useNativeDriver={false}
+      // useNativeDriverForBackdrop={false}
     >
       <View style={styles.modalContent}>
         <View style={styles.topBar}></View>
@@ -46,8 +76,8 @@ const DetailEventModal = () => {
             <Text>{nowEvent?.category && categoryArr[nowEvent.category]}</Text>
           </View>
           <Text style={styles.title}>{nowEvent?.title}</Text>
-          <Text>
-            일정 시간
+          <View style={styles.time}>
+            <Text style={styles.contentTitle}>일정 시간 {`\n`}</Text>
             <Text>
               {dayjs(nowEvent.startDateTime).format("YYYY년 MM월 DD일")}{" "}
               {dayjs(nowEvent.startDateTime).format("HH:mm")} -{" "}
@@ -56,11 +86,19 @@ const DetailEventModal = () => {
                 dayjs(nowEvent.endDateTime).format("YYYY년 MM월 DD일")}{" "}
               {dayjs(nowEvent.endDateTime).format("HH:mm")}
             </Text>
-          </Text>
-          <Text>일정 내용 : {nowEvent.content}</Text>
+          </View>
+          {nowEvent.content !== "" && (
+            <View>
+              <Text style={styles.contentTitle}>일정 내용</Text>
+              <Text>{nowEvent.content}</Text>
+            </View>
+          )}
         </View>
         <View style={styles.btnGroup}>
-          <TouchableOpacity style={[styles.btn, styles.deleteBtn]}>
+          <TouchableOpacity
+            style={[styles.btn, styles.deleteBtn]}
+            onPress={deleteEvent}
+          >
             <Text style={styles.btnText}>삭제</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.btn, styles.editBtn]}>
@@ -78,14 +116,10 @@ const styles = StyleSheet.create({
     // justifyContent: "center",
     alignItems: "center",
     margin: 0,
-  },
-  topBar: {
-    width: 80,
-    height: 3,
-    backgroundColor: "grey",
-    borderRadius: 10,
+    flex: 1,
   },
   modalContent: {
+    flex: 0.6,
     width: "100%",
     // height: 400,
     marginTop: "10%",
@@ -97,17 +131,32 @@ const styles = StyleSheet.create({
     gap: 40,
     // justifyContent: "center",
   },
+  topBar: {
+    width: 80,
+    height: 3,
+    backgroundColor: "grey",
+    borderRadius: 10,
+    flex: 0.01,
+  },
   content: {
+    flex: 1.2,
     width: "100%",
+    height: "auto",
     justifyContent: "flex-start",
     alignItems: "flex-start",
     gap: 10,
-    minHeight: 300,
+    // minHeight: 300,
   },
   title: {
     fontSize: 24,
     fontWeight: 700,
     marginBottom: 20,
+  },
+  time: {
+    height: "auto",
+  },
+  contentTitle: {
+    fontSize: 18,
   },
   category: {
     paddingHorizontal: 10,
@@ -127,6 +176,7 @@ const styles = StyleSheet.create({
     backgroundColor: "lightskyblue",
   },
   btnGroup: {
+    flex: 0.14,
     flexDirection: "row",
     gap: 20,
   },

@@ -1,20 +1,16 @@
 import dayjs, { Dayjs } from "dayjs";
 import "dayjs/locale/ko";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Animated,
   Dimensions,
-  PanResponder,
+  FlatList,
+  ListRenderItem,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
+  ViewToken,
 } from "react-native";
 import "dayjs/locale/ko";
 import {
@@ -29,9 +25,20 @@ import MonthCalendar from "./MonthCalendar";
 import { useEventStore, useNowEventStore } from "@/stores/eventStore";
 import DetailEventModal from "./DetailEventModal";
 
+interface CalendarItem {
+  id: "prev" | "current" | "next";
+  date: Dayjs;
+}
+
+interface ViewableItemsChanged {
+  viewableItems: ViewToken[];
+  changed: ViewToken[];
+}
+
 const Calendar = () => {
   dayjs.locale("ko");
   const [currentDate, setCurrentDate] = useState(dayjs());
+  const flatListRef = useRef<FlatList>(null);
 
   const { isMonthView, setIsMonthView } = useCalendarUiStore();
   const { holiday, fetchHoliday } = useHolidayStore();
@@ -39,56 +46,13 @@ const Calendar = () => {
   const { edit, showDetail } = useNowEventStore();
 
   const screenWidth = Dimensions.get("window").width;
-  const scrollWidth = screenWidth * 3;
-
   const calendarWidth = screenWidth - 20;
-  const translateX = useRef(new Animated.Value(0)).current;
-  const [translateValue, setTranslateValue] = useState(0);
 
   const [view, setView] = useState(false);
 
   useEffect(() => {
     setSelectedEvent();
   }, [selectDay, event]);
-
-  useEffect(() => {
-    translateX.addListener(({ value }) => {
-      setTranslateValue(value);
-    });
-    return () => {
-      translateX.removeAllListeners();
-    };
-  }, []);
-
-  const animateTransition = useCallback(
-    (direction: "left" | "right") => {
-      const toValue = direction === "right" ? -screenWidth : screenWidth;
-
-      translateX.setValue(0);
-
-      Animated.timing(translateX, {
-        toValue: toValue,
-        useNativeDriver: true,
-        duration: 500,
-      }).start(() => {
-        if (isMonthView === true) {
-          if (direction === "right") {
-            setCurrentDate((prev) => prev.add(1, "month"));
-          } else {
-            setCurrentDate((prev) => prev.subtract(1, "month"));
-          }
-        } else if (isMonthView === false) {
-          if (direction === "right") {
-            setCurrentDate((prev) => prev.add(1, "week"));
-          } else {
-            setCurrentDate((prev) => prev.subtract(1, "week"));
-          }
-        }
-        translateX.setValue(0);
-      });
-    },
-    [screenWidth, isMonthView]
-  );
 
   const getMonthData = (date: Dayjs) => {
     const firstDay = date.startOf("month").startOf("week");
@@ -111,96 +75,41 @@ const Calendar = () => {
     return weeks;
   };
 
-  const prevDate = useMemo(() => {
-    const prevMonth = currentDate.subtract(1, "month");
-    return getMonthData(prevMonth);
-  }, [currentDate]);
+  const getWeekData = useCallback((date: Dayjs) => {
+    const monthData = getMonthData(date);
 
-  const nextDate = useMemo(() => {
-    const nextMonth = currentDate.add(1, "month");
-    return getMonthData(nextMonth);
-  }, [currentDate]);
+    const weekIndex = monthData.findIndex((week) =>
+      week.some((day) => day.isSame(date, "day"))
+    );
+
+    return weekIndex !== -1 ? monthData[weekIndex] : monthData[0];
+  }, []);
 
   const year = currentDate.year();
   const month = currentDate.month() + 1;
 
-  const firstDayOfMonth = useMemo(
-    () =>
-      dayjs()
-        .year(year)
-        .month(month - 1)
-        .startOf("month"),
-    [year, month]
-  );
-  const startDay = useMemo(() => {
-    return firstDayOfMonth.startOf("week");
-  }, [firstDayOfMonth]);
+  const handlePrev = useCallback(() => {
+    setIsScrolling(true);
 
-  const lastDayOfMonth = useMemo(
-    () =>
-      dayjs()
-        .year(year)
-        .month(month - 1)
-        .endOf("month"),
-    [year, month]
-  );
-  const endDay = useMemo(() => {
-    return lastDayOfMonth.endOf("week");
-  }, [lastDayOfMonth]);
+    flatListRef.current?.scrollToIndex({
+      index: 0,
+      animated: true,
+    });
+  }, []);
 
-  const date = useMemo(() => {
-    const weeks = [];
-    let currentWeek = [];
-    let currentDate = startDay;
+  const handleNext = useCallback(() => {
+    setIsScrolling(true);
 
-    while (currentDate.isBefore(endDay) || currentDate.isSame(endDay, "day")) {
-      currentWeek.push(currentDate);
-
-      if (currentWeek.length === 7 || currentDate.day() === 6) {
-        weeks.push(currentWeek);
-        currentWeek = [];
-      }
-
-      currentDate = currentDate.add(1, "day");
-    }
-
-    if (currentWeek.length > 0) {
-      weeks.push(currentWeek);
-    }
-
-    return weeks;
-  }, [startDay, endDay]);
-
-  const handlePrevMonth = useCallback(() => {
-    animateTransition("left");
-  }, [animateTransition]);
-
-  const handleNextMonth = useCallback(() => {
-    animateTransition("right");
-  }, [animateTransition]);
+    flatListRef.current?.scrollToIndex({
+      index: 2,
+      animated: true,
+    });
+  }, []);
 
   // Week Calendar
-  const currentWeekIndex = date.findIndex((week) =>
+  const currentWeekIndex = getMonthData(currentDate).findIndex((week) =>
     week.some((day: Dayjs) => day.isSame(currentDate, "day"))
   );
-
-  const currentWeek = date[currentWeekIndex] || date[0];
-  const prevWeek =
-    currentWeekIndex > 0
-      ? date[currentWeekIndex - 1]
-      : getMonthData(currentDate.subtract(1, "month")).slice(-1)[0];
-  const nextWeek =
-    currentWeekIndex < date.length - 1
-      ? date[currentWeekIndex + 1]
-      : getMonthData(currentDate.add(1, "month"))[0];
-
-  const handlePrevWeek = useCallback(() => {
-    animateTransition("left");
-  }, [animateTransition]);
-
-  const handleNextWeek = useCallback(() => {
-    animateTransition("right");
-  }, [animateTransition]);
 
   useEffect(() => {
     getMonthData(currentDate);
@@ -223,58 +132,111 @@ const Calendar = () => {
     [holiday]
   );
 
-  // TOUCH EVENT
-  const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: (_, gestureState) => {
-          return (
-            Math.abs(gestureState.dx) > 20 || Math.abs(gestureState.dy) > 20
+  // Touch Event
+  const getCalendarData = useCallback(
+    (date: Dayjs, isMonth: boolean): CalendarItem[] => {
+      return [
+        {
+          id: "prev" as const,
+          date: date.subtract(1, isMonth ? "month" : "week"),
+        },
+        { id: "current" as const, date: date },
+        { id: "next" as const, date: date.add(1, isMonth ? "month" : "week") },
+      ];
+    },
+    []
+  );
+
+  const [calendarData, setCalendarData] = useState(() =>
+    getCalendarData(currentDate, isMonthView)
+  );
+
+  useEffect(() => {
+    setCalendarData(getCalendarData(currentDate, isMonthView));
+  }, [currentDate, isMonthView, getCalendarData]);
+
+  const [isScrolling, setIsScrolling] = useState(false);
+  const [needScroll, setNeedScroll] = useState(false);
+
+  useEffect(() => {
+    if (needScroll) {
+      setTimeout(() => {
+        flatListRef.current?.scrollToIndex({
+          index: 1,
+          animated: false,
+        });
+      }, Platform.select({ ios: 0, android: 50 }));
+      setNeedScroll(false);
+      setIsScrolling(false);
+    }
+  }, [currentDate]);
+
+  const onViewableItemsChanged = useCallback(
+    ({ viewableItems }: ViewableItemsChanged) => {
+      if (viewableItems.length === 0 || isScrolling) return;
+
+      const newIndex = viewableItems[0].index;
+      if (newIndex === undefined) return;
+
+      if (newIndex === 0 || newIndex === 2) {
+        setIsScrolling(true);
+        setNeedScroll(true);
+
+        setTimeout(() => {
+          setCurrentDate((prev) =>
+            newIndex == 0
+              ? prev.subtract(1, isMonthView ? "month" : "week")
+              : prev.add(1, isMonthView ? "month" : "week")
           );
-        },
+        }, 50);
+      }
+    },
+    [isMonthView, isScrolling]
+  );
 
-        onPanResponderGrant: (_, gestureState) => {
-          if (
-            Math.abs(gestureState.dx) > 20 ||
-            Math.abs(gestureState.dy) > 20
-          ) {
-            translateX.setValue(-screenWidth);
-          }
-        },
+  const onViewableItemsChangedRef = useRef(onViewableItemsChanged);
 
-        onPanResponderMove: (_, gestureState) => {
-          // translateX.setValue(+gestureState.dx);
-          if (Math.abs(gestureState.dx) > 20) {
-            translateX.setValue(gestureState.dx);
-          }
-        },
+  useEffect(() => {
+    onViewableItemsChangedRef.current = onViewableItemsChanged;
+  }, [onViewableItemsChanged]);
 
-        onPanResponderRelease: (_, gestureState) => {
-          if (Math.abs(gestureState.dx) > screenWidth * 0.3) {
-            if (gestureState.dx > 0) {
-              if (isMonthView) handlePrevMonth();
-              else handlePrevWeek();
-            } else {
-              if (isMonthView) handleNextMonth();
-              else handleNextWeek();
-            }
-          } else {
-            Animated.spring(translateX, {
-              toValue: 0,
-              useNativeDriver: true,
-            }).start();
-          }
-        },
-      }),
-    [
-      handlePrevMonth,
-      handleNextMonth,
-      handleNextWeek,
-      handlePrevWeek,
-      screenWidth,
-      isMonthView,
-    ]
+  const viewabilityConfigRef = useRef({
+    itemVisiblePercentThreshold: 100,
+    minimumViewTime: 0,
+  });
+
+  const renderCalendarItem: ListRenderItem<CalendarItem> = useCallback(
+    ({ item }) => {
+      if (isMonthView) {
+        return (
+          <View style={[styles.calendarWrapper, { width: calendarWidth }]}>
+            <Weekdays />
+            <MonthCalendar
+              date={getMonthData(item.date)}
+              currentDate={item.date}
+              getHolidayInfo={getHolidayInfo}
+            />
+          </View>
+        );
+      } else {
+        const monthData = getMonthData(item.date);
+        const weekIndex = monthData.findIndex((week) =>
+          week.some((day) => day.isSame(item.date, "day"))
+        );
+        const currentWeek = monthData[weekIndex] || monthData[0];
+        return (
+          <View style={[styles.calendarWrapper, { width: calendarWidth }]}>
+            <Weekdays />
+            <WeekCalendar
+              currentWeek={currentWeek}
+              currentDate={item.date}
+              getHolidayInfo={getHolidayInfo}
+            />
+          </View>
+        );
+      }
+    },
+    [isMonthView, calendarWidth, getWeekData, getHolidayInfo]
   );
 
   return (
@@ -313,22 +275,14 @@ const Calendar = () => {
           일정 추가하기
         </Text>
         <View style={styles.controlContainer}>
-          <View style={styles.titleBox}>
-            <Text style={styles.title}>
-              {year}년 {month}월 {!isMonthView && `${currentWeekIndex + 1}주차`}
-            </Text>
-          </View>
+          <Text style={styles.title}>
+            {year}년 {month}월 {!isMonthView && `${currentWeekIndex + 1}주차`}
+          </Text>
           <View style={styles.controlBox}>
-            <TouchableOpacity
-              style={styles.contorlBtn}
-              onPress={isMonthView ? handlePrevMonth : handlePrevWeek}
-            >
+            <TouchableOpacity style={styles.contorlBtn} onPress={handlePrev}>
               <Text style={styles.btnText}>◀</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.contorlBtn}
-              onPress={isMonthView ? handleNextMonth : handleNextWeek}
-            >
+            <TouchableOpacity style={styles.contorlBtn} onPress={handleNext}>
               <Text style={styles.btnText}>▶</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -341,94 +295,32 @@ const Calendar = () => {
             </TouchableOpacity>
           </View>
         </View>
-        {isMonthView ? (
-          <View
-            {...panResponder.panHandlers}
-            style={[styles.calendarSlider, { width: calendarWidth }]}
-          >
-            <Animated.View
-              style={{
-                flexDirection: "row",
-                transform: [{ translateX: translateValue }],
-                width: scrollWidth,
-              }}
-            >
-              <View style={[styles.calendarWrapper, { width: calendarWidth }]}>
-                <Weekdays />
-                <View style={styles.monthContainer}>
-                  <MonthCalendar
-                    date={prevDate}
-                    currentDate={currentDate.subtract(1, "month")}
-                    getHolidayInfo={getHolidayInfo}
-                  />
-                </View>
-              </View>
-              <View
-                style={[
-                  styles.calendarWrapper,
-                  { width: calendarWidth, height: "auto" },
-                ]}
-              >
-                <Weekdays />
-                <View style={styles.monthContainer}>
-                  <MonthCalendar
-                    date={date}
-                    currentDate={currentDate}
-                    getHolidayInfo={getHolidayInfo}
-                  />
-                </View>
-              </View>
-              <View style={[styles.calendarWrapper, { width: calendarWidth }]}>
-                <Weekdays />
-                <View style={styles.monthContainer}>
-                  <MonthCalendar
-                    date={nextDate}
-                    currentDate={currentDate.add(1, "month")}
-                    getHolidayInfo={getHolidayInfo}
-                  />
-                </View>
-              </View>
-            </Animated.View>
-          </View>
-        ) : (
-          <View
-            {...panResponder.panHandlers}
-            style={[styles.calendarSlider, { width: calendarWidth }]}
-          >
-            <Animated.View
-              style={{
-                flexDirection: "row",
-                transform: [{ translateX: translateValue }],
-                width: scrollWidth,
-              }}
-            >
-              <View style={[styles.calendarWrapper, { width: calendarWidth }]}>
-                <Weekdays />
-                <WeekCalendar
-                  currentWeek={prevWeek}
-                  currentDate={currentDate.subtract(1, "week")}
-                  getHolidayInfo={getHolidayInfo}
-                />
-              </View>
-              <View style={[styles.calendarWrapper, { width: calendarWidth }]}>
-                <Weekdays />
-                <WeekCalendar
-                  currentWeek={currentWeek}
-                  currentDate={currentDate}
-                  getHolidayInfo={getHolidayInfo}
-                />
-              </View>
-              <View style={[styles.calendarWrapper, { width: calendarWidth }]}>
-                <Weekdays />
-                <WeekCalendar
-                  currentWeek={nextWeek}
-                  currentDate={currentDate.add(1, "week")}
-                  getHolidayInfo={getHolidayInfo}
-                />
-              </View>
-            </Animated.View>
-          </View>
-        )}
+        <View style={{ width: screenWidth }}>
+          <FlatList<CalendarItem>
+            removeClippedSubviews={true}
+            maxToRenderPerBatch={3}
+            windowSize={3}
+            ref={flatListRef}
+            horizontal
+            pagingEnabled
+            data={calendarData}
+            renderItem={renderCalendarItem}
+            keyExtractor={(item) => item.id}
+            showsHorizontalScrollIndicator={false}
+            initialScrollIndex={1}
+            getItemLayout={(_, index) => ({
+              length: screenWidth,
+              offset: screenWidth * index,
+              index,
+            })}
+            onViewableItemsChanged={onViewableItemsChangedRef.current}
+            viewabilityConfig={viewabilityConfigRef.current}
+            decelerationRate="fast"
+            snapToInterval={screenWidth}
+            disableIntervalMomentum={true}
+            scrollEventThrottle={16}
+          />
+        </View>
       </View>
     </>
   );
@@ -455,8 +347,6 @@ const styles = StyleSheet.create({
     shadowRadius: 0,
     elevation: 1,
     fontSize: 16,
-    // borderWidth: 1,
-    // borderColor: "rgb(216,216,216)",
   },
   changeBtnGroup: {
     flexDirection: "row",
@@ -493,26 +383,14 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  titleBox: {
-    // position: "absolute",
-    // top: "50%",
-    // left: "50%",
-    // transform: "translate(-50%, -50%)",
-  },
   title: {
     fontSize: 20,
     fontFamily: "NanumBarunGothic",
   },
   controlBox: {
     flexDirection: "row",
-    // gap: 5,
-    // paddingHorizontal: 10,
-    // gap: 1,
   },
   contorlBtn: {
-    // width: 30,
-    // height: 20,
-    // width: 0,
     paddingHorizontal: 10,
     paddingVertical: 4,
     backgroundColor: "#fff",
@@ -523,11 +401,15 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   calendarSlider: {
-    // overflow: "hidden",
-    // width: "100%",
     alignItems: "center",
   },
+  flatListContainer: {
+    width: "100%",
+    height: "auto",
+    minHeight: 300,
+  },
   calendarWrapper: {
+    minHeight: 300,
     alignSelf: "flex-start",
     color: "#999",
     height: "auto",
@@ -543,10 +425,6 @@ const styles = StyleSheet.create({
   },
   lastChild: {
     color: "blue",
-  },
-
-  monthContainer: {
-    // width: "33.33%",
   },
 });
 
