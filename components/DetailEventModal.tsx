@@ -77,7 +77,7 @@ const DetailEventModal = () => {
           </View>
           <Text style={styles.title}>{nowEvent?.title}</Text>
           <View style={styles.time}>
-            <Text style={styles.contentTitle}>일정 시간 {`\n`}</Text>
+            <Text style={styles.contentTitle}>일정 기간 {`\n`}</Text>
             <Text>
               {dayjs(nowEvent.startDateTime).format("YYYY년 MM월 DD일")}{" "}
               {dayjs(nowEvent.startDateTime).format("HH:mm")} -{" "}

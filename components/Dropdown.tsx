@@ -3,6 +3,7 @@ import React, { useRef, useState } from "react";
 import {
   Animated,
   DimensionValue,
+  Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -55,6 +56,10 @@ const Dropdown = ({ data, width, setMenu }: Props) => {
     }
   };
 
+  const handlePressInside = (e: any) => {
+    e.stopPropagation(); // 이벤트 전파 방지
+  };
+
   return (
     <View style={[styles.container, { width }]}>
       <TouchableOpacity onPress={toggleDropdown} style={styles.button}>
@@ -69,7 +74,7 @@ const Dropdown = ({ data, width, setMenu }: Props) => {
       </TouchableOpacity>
 
       {isVisible && (
-        <TouchableWithoutFeedback onPress={toggleDropdown} accessible={false}>
+        <TouchableWithoutFeedback onPress={toggleDropdown}>
           <View style={styles.overlay}>
             <Animated.View
               style={[
@@ -84,13 +89,20 @@ const Dropdown = ({ data, width, setMenu }: Props) => {
               ]}
             >
               {data.map((item) => (
-                <TouchableOpacity
+                <Pressable
                   onPress={() => handleSelect(item.value, item.name)}
-                  style={styles.item}
+                  style={({ pressed }) => [
+                    styles.item,
+                    pressed && styles.pressedItem,
+                  ]}
                   key={item.value}
                 >
-                  <Text>{item.name}</Text>
-                </TouchableOpacity>
+                  {({ pressed }) => (
+                    <Text style={[pressed && styles.pressedItemText]}>
+                      {item.name}
+                    </Text>
+                  )}
+                </Pressable>
               ))}
             </Animated.View>
           </View>
@@ -102,7 +114,7 @@ const Dropdown = ({ data, width, setMenu }: Props) => {
 
 const styles = StyleSheet.create({
   container: {
-    // flex: 1,
+    flex: 1,
     justifyContent: "center",
     alignItems: "center",
     position: "relative",
@@ -123,7 +135,7 @@ const styles = StyleSheet.create({
   overlay: {
     position: "absolute",
     // top: "50%",
-    top: "102%",
+    top: "110%",
     width: "100%",
     alignItems: "center",
     zIndex: 10,
@@ -137,12 +149,19 @@ const styles = StyleSheet.create({
     elevation: 5, // Android 그림자
     shadowColor: "#000", // iOS 그림자
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.04,
     shadowRadius: 2,
   },
   item: {
     padding: 10,
     alignItems: "center",
+  },
+  pressedItem: {
+    backgroundColor: "#edf5ff",
+  },
+
+  pressedItemText: {
+    color: "#36bffa",
   },
 });
 

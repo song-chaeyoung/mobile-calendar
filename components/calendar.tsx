@@ -4,7 +4,6 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Dimensions,
   FlatList,
-  ListRenderItem,
   Platform,
   StyleSheet,
   Text,
@@ -12,20 +11,24 @@ import {
   View,
   ViewToken,
 } from "react-native";
-import "dayjs/locale/ko";
 import {
   holidayItemType,
   useCalendarUiStore,
   useHolidayStore,
 } from "../stores/calendarStore";
 import FormModal from "./FormModal";
-import Weekdays from "./Weekdays";
-import WeekCalendar from "./WeekCalendar";
-import MonthCalendar from "./MonthCalendar";
+// import Weekdays from "./Weekdays";
+// import WeekCalendar from "./WeekCalendar";
+// import MonthCalendar from "./MonthCalendar";
 import { useEventStore, useNowEventStore } from "@/stores/eventStore";
 import DetailEventModal from "./DetailEventModal";
+import { useCalendarArray } from "@/hooks/useCalendarArray";
+import CalendarView from "./CalendarView";
 
-interface CalendarItem {
+const screenWidth = Dimensions.get("window").width;
+const calendarWidth = screenWidth - 20;
+
+export interface CalendarItem {
   id: "prev" | "current" | "next";
   date: Dayjs;
 }
@@ -38,6 +41,9 @@ interface ViewableItemsChanged {
 const Calendar = () => {
   dayjs.locale("ko");
   const [currentDate, setCurrentDate] = useState(dayjs());
+  // const [currentMonth, setCurrentMonth] = useState(
+  //   useCalendarArray(currentDate)
+  // );
   const flatListRef = useRef<FlatList>(null);
 
   const { isMonthView, setIsMonthView } = useCalendarUiStore();
@@ -45,45 +51,11 @@ const Calendar = () => {
   const { event, selectDay, setSelectedEvent } = useEventStore();
   const { edit, showDetail } = useNowEventStore();
 
-  const screenWidth = Dimensions.get("window").width;
-  const calendarWidth = screenWidth - 20;
-
   const [view, setView] = useState(false);
 
   useEffect(() => {
     setSelectedEvent();
   }, [selectDay, event]);
-
-  const getMonthData = (date: Dayjs) => {
-    const firstDay = date.startOf("month").startOf("week");
-    const lastDay = date.endOf("month").endOf("week");
-    const weeks = [];
-    let currentWeek = [];
-    let current = firstDay;
-
-    while (current.isBefore(lastDay) || current.isSame(lastDay, "day")) {
-      currentWeek.push(current);
-      if (currentWeek.length === 7) {
-        weeks.push(currentWeek);
-        currentWeek = [];
-      }
-      current = current.add(1, "day");
-    }
-    if (currentWeek.length > 0) {
-      weeks.push(currentWeek);
-    }
-    return weeks;
-  };
-
-  const getWeekData = useCallback((date: Dayjs) => {
-    const monthData = getMonthData(date);
-
-    const weekIndex = monthData.findIndex((week) =>
-      week.some((day) => day.isSame(date, "day"))
-    );
-
-    return weekIndex !== -1 ? monthData[weekIndex] : monthData[0];
-  }, []);
 
   const year = currentDate.year();
   const month = currentDate.month() + 1;
@@ -107,18 +79,14 @@ const Calendar = () => {
   }, []);
 
   // Week Calendar
-  const currentWeekIndex = getMonthData(currentDate).findIndex((week) =>
+  const currentWeekIndex = useCalendarArray(currentDate).findIndex((week) =>
     week.some((day: Dayjs) => day.isSame(currentDate, "day"))
   );
-
-  useEffect(() => {
-    getMonthData(currentDate);
-  }, []);
 
   // HOLIDAY
   useEffect(() => {
     fetchHoliday(currentDate.get("year"), currentDate.get("month"));
-    getMonthData(currentDate);
+    // useCalendarArray(currentDate);
   }, [currentDate]);
 
   const getHolidayInfo = useCallback(
@@ -165,7 +133,7 @@ const Calendar = () => {
           index: 1,
           animated: false,
         });
-      }, Platform.select({ ios: 0, android: 50 }));
+      }, Platform.select({ ios: 0, android: 100 }));
       setNeedScroll(false);
       setIsScrolling(false);
     }
@@ -188,7 +156,7 @@ const Calendar = () => {
               ? prev.subtract(1, isMonthView ? "month" : "week")
               : prev.add(1, isMonthView ? "month" : "week")
           );
-        }, 50);
+        }, 10);
       }
     },
     [isMonthView, isScrolling]
@@ -205,39 +173,36 @@ const Calendar = () => {
     minimumViewTime: 0,
   });
 
-  const renderCalendarItem: ListRenderItem<CalendarItem> = useCallback(
-    ({ item }) => {
-      if (isMonthView) {
-        return (
-          <View style={[styles.calendarWrapper, { width: calendarWidth }]}>
-            <Weekdays />
-            <MonthCalendar
-              date={getMonthData(item.date)}
-              currentDate={item.date}
-              getHolidayInfo={getHolidayInfo}
-            />
-          </View>
-        );
-      } else {
-        const monthData = getMonthData(item.date);
-        const weekIndex = monthData.findIndex((week) =>
-          week.some((day) => day.isSame(item.date, "day"))
-        );
-        const currentWeek = monthData[weekIndex] || monthData[0];
-        return (
-          <View style={[styles.calendarWrapper, { width: calendarWidth }]}>
-            <Weekdays />
-            <WeekCalendar
-              currentWeek={currentWeek}
-              currentDate={item.date}
-              getHolidayInfo={getHolidayInfo}
-            />
-          </View>
-        );
-      }
-    },
-    [isMonthView, calendarWidth, getWeekData, getHolidayInfo]
-  );
+  // const renderCalendarItem: ListRenderItem<CalendarItem> = useCallback(
+  //   ({ item }) => {
+  //     if (isMonthView) {
+  //       return (
+  //         <View style={[styles.calendarWrapper, { width: calendarWidth }]}>
+  //           <Weekdays />
+  //           <MonthCalendar
+  //             date={useCalendarArray(item.date)}
+  //             currentDate={item.date}
+  //             getHolidayInfo={getHolidayInfo}
+  //           />
+  //         </View>
+  //       );
+  //     } else {
+  //       const currentMonth = useCalendarArray(currentDate);
+  //       const currentWeek = currentMonth[currentWeekIndex] || currentMonth[0];
+  //       return (
+  //         <View style={[styles.calendarWrapper, { width: calendarWidth }]}>
+  //           <Weekdays />
+  //           <WeekCalendar
+  //             currentWeek={currentWeek}
+  //             currentDate={item.date}
+  //             getHolidayInfo={getHolidayInfo}
+  //           />
+  //         </View>
+  //       );
+  //     }
+  //   },
+  //   [isMonthView, calendarWidth, getHolidayInfo, currentDate]
+  // );
 
   return (
     <>
@@ -304,7 +269,15 @@ const Calendar = () => {
             horizontal
             pagingEnabled
             data={calendarData}
-            renderItem={renderCalendarItem}
+            renderItem={({ item }) => (
+              <CalendarView
+                currentDate={currentDate}
+                currentWeekIndex={currentWeekIndex}
+                calendarWidth={calendarWidth}
+                getHolidayInfo={getHolidayInfo}
+                item={item}
+              />
+            )}
             keyExtractor={(item) => item.id}
             showsHorizontalScrollIndicator={false}
             initialScrollIndex={1}
@@ -400,32 +373,18 @@ const styles = StyleSheet.create({
     shadowRadius: 0,
     elevation: 1,
   },
-  calendarSlider: {
-    alignItems: "center",
-  },
-  flatListContainer: {
-    width: "100%",
-    height: "auto",
-    minHeight: 300,
-  },
-  calendarWrapper: {
-    minHeight: 300,
-    alignSelf: "flex-start",
-    color: "#999",
-    height: "auto",
-    marginHorizontal: 10,
-    borderRadius: 10,
-    overflow: "hidden",
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "rgb(216,216,216)",
-  },
-  firstChild: {
-    color: "red",
-  },
-  lastChild: {
-    color: "blue",
-  },
+  // calendarWrapper: {
+  //   minHeight: 300,
+  //   alignSelf: "flex-start",
+  //   color: "#999",
+  //   height: "auto",
+  //   marginHorizontal: 10,
+  //   borderRadius: 10,
+  //   overflow: "hidden",
+  //   backgroundColor: "#fff",
+  //   borderWidth: 1,
+  //   borderColor: "rgb(216,216,216)",
+  // },
 });
 
 export default Calendar;
